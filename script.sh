@@ -4,27 +4,22 @@
 # Exit immediately if a command exits with a non-zero status.
 set -e
 
-# --- Functions ---
-# Function to check if a command exists
-command_exists() {
-  command -v "$1" >/dev/null 2>&1
-}
-
 # --- Main Script ---
 
-# 1. Check if MySQL is already installed
-if command_exists mysql; then
-  echo "MySQL is already installed. Skipping installation."
+# 1. Check if the MySQL SERVER package is already installed.
+# This is a more robust check than looking for the 'mysql' command.
+if dpkg-query -W -f='${Status}' mysql-server 2>/dev/null | grep -q "ok installed"; then
+  echo "MySQL Server is already installed. Skipping installation."
 else
-  # Prompt for the new MySQL root password
+  # Prompt for the new MySQL root password ONLY if installing.
   read -s -p "Enter the new MySQL root password: " root_password
-  echo
+  echo # Adds a newline for cleaner output
 
   # Set the DEBIAN_FRONTEND to noninteractive to avoid prompts
   export DEBIAN_FRONTEND=noninteractive
 
   # Pre-configure the MySQL installation with the root password
-  # This is the most reliable way to set the password non-interactively
+  echo "Pre-configuring MySQL with the provided password..."
   sudo debconf-set-selections <<< "mysql-server mysql-server/root_password password $root_password"
   sudo debconf-set-selections <<< "mysql-server mysql-server/root_password_again password $root_password"
 
@@ -32,12 +27,12 @@ else
   echo "Installing MySQL Server..."
   sudo apt-get update
   sudo apt-get install -y mysql-server
-fi
 
-# 2. Secure the MySQL installation
-# Run SQL commands to perform the same actions as mysql_secure_installation
-echo "Securing MySQL installation..."
-sudo mysql --user=root --password="$root_password" <<_EOF_
+  # 2. Secure the MySQL installation
+  # This section now runs only after a fresh install.
+  echo "Securing MySQL installation..."
+  # Note: Use the password variable defined during the install prompt.
+  sudo mysql --user=root --password="$root_password" <<_EOF_
 -- Remove anonymous users
 DELETE FROM mysql.user WHERE User='';
 -- Disallow remote root login
@@ -49,4 +44,6 @@ DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';
 FLUSH PRIVILEGES;
 _EOF_
 
-echo "MySQL server has been installed and configured securely."
+fi
+
+echo "MySQL configuration check complete."
