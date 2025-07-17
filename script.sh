@@ -4,6 +4,8 @@
 # Exit immediately if a command exits with a non-zero status.
 set -e
 
+echo "v1"
+
 # --- Main Script ---
 
 # 1. Check if the MySQL SERVER package is already installed.
